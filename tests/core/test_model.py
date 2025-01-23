@@ -1949,12 +1949,14 @@ def test_python_model_variable_dependencies() -> None:
     assert m.depends_on == {'"foo"."table_name"'}
 
 
-def test_python_model_with_session_properties():
+def test_python_model_with_properties():
     @model(
         name="python_model_prop",
         kind="full",
         columns={"some_col": "int"},
         session_properties={"some_string": "string_prop", "some_bool": True, "some_float": 1.0},
+        physical_properties={"partition_expiration_days": 7},
+        virtual_properties={"creatable_type": None},
     )
     def python_model_prop(context, **kwargs):
         context.resolve_table("foo")
@@ -1967,7 +1969,14 @@ def test_python_model_with_session_properties():
             "session_properties": {
                 "some_string": "default_string",
                 "default_value": "default_value",
-            }
+            },
+            "physical_properties": {
+                "partition_expiration_days": 13,
+                "creatable_type": "TRANSIENT",
+            },
+            "virtual_properties": {
+                "creatable_type": "SECURE",
+            },
         },
     )
     assert m.session_properties == {
@@ -1976,6 +1985,13 @@ def test_python_model_with_session_properties():
         "some_float": 1.0,
         "default_value": "default_value",
     }
+
+    assert m.physical_properties == {
+        "partition_expiration_days": exp.convert(7),
+        "creatable_type": exp.convert("TRANSIENT"),
+    }
+
+    assert not m.virtual_properties
 
 
 def test_python_models_returning_sql(assert_exp_eq) -> None:
@@ -3297,7 +3313,12 @@ def test_session_properties_on_model_and_project(sushi_context):
             "some_bool": False,
             "quoted_identifier": "value_you_wont_see",
             "project_level_property": "project_property",
-        }
+        },
+        physical_properties={
+            "warehouse": "small",
+            "target_lag": "10 minutes",
+        },
+        virtual_properties={"creatable_type": "SECURE"},
     )
 
     model = load_sql_based_model(
@@ -3312,7 +3333,10 @@ def test_session_properties_on_model_and_project(sushi_context):
                 some_float = 0.1,
                 quoted_identifier = "quoted identifier",
                 unquoted_identifier = unquoted_identifier,
-            )
+            ),
+            physical_properties (
+                target_lag = '1 hour'
+            ),
         );
         SELECT a FROM tbl;
         """,
@@ -3331,14 +3355,28 @@ def test_session_properties_on_model_and_project(sushi_context):
         "project_level_property": "project_property",
     }
 
+    assert model.physical_properties == {
+        "warehouse": exp.convert("small"),
+        "target_lag": exp.convert("1 hour"),
+    }
 
-def test_project_level_session_properties(sushi_context):
+    assert model.virtual_properties == {
+        "creatable_type": exp.convert("SECURE"),
+    }
+
+
+def test_project_level_properties(sushi_context):
     model_defaults = ModelDefaultsConfig(
         session_properties={
             "some_bool": False,
             "some_float": 0.1,
             "project_level_property": "project_property",
-        }
+        },
+        physical_properties={
+            "warehouse": "small",
+            "target_lag": "1 hour",
+        },
+        virtual_properties={"creatable_type": "SECURE"},
     )
 
     model = load_sql_based_model(
@@ -3346,6 +3384,9 @@ def test_project_level_session_properties(sushi_context):
             """
         MODEL (
             name test_schema.test_model,
+            virtual_properties (
+                creatable_type = None
+            )
         );
         SELECT a FROM tbl;
         """,
@@ -3359,6 +3400,14 @@ def test_project_level_session_properties(sushi_context):
         "some_float": 0.1,
         "project_level_property": "project_property",
     }
+
+    assert model.physical_properties == {
+        "warehouse": exp.convert("small"),
+        "target_lag": exp.convert("1 hour"),
+    }
+
+    # Validate disabling global property
+    assert not model.virtual_properties
 
 
 def test_model_session_properties(sushi_context):
