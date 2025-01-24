@@ -715,7 +715,7 @@ class GenericContext(BaseContext, t.Generic[C]):
                 self.notification_target_manager.notify(
                     NotificationEvent.RUN_FAILURE, traceback.format_exc()
                 )
-                logger.error(f"Run Failure: {traceback.format_exc()}")
+                logger.info("Run failed.\n" + traceback.format_exc())
                 analytics.collector.on_run_end(
                     run_id=analytics_run_id, succeeded=False, interrupted=False, error=e
                 )
@@ -1420,7 +1420,6 @@ class GenericContext(BaseContext, t.Generic[C]):
                 plan_id=plan.plan_id,
                 exc=traceback.format_exc(),
             )
-            logger.error(f"Apply Failure: {traceback.format_exc()}")
             raise e
         self.notification_target_manager.notify(
             NotificationEvent.APPLY_END,
@@ -2037,9 +2036,10 @@ class GenericContext(BaseContext, t.Generic[C]):
                     self._test_connection_config._engine_adapter.DIALECT,
                 )
             if not result.wasSuccessful():
-                raise PlanError(
-                    "Cannot generate plan due to failing test(s). Fix test(s) and run again"
+                self.console.log_error(
+                    "Error: Cannot generate plan due to failing test(s). Fix test(s) and run again"
                 )
+                raise PlanError
             return result, test_output
         return None, None
 
