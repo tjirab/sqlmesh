@@ -23,7 +23,8 @@ class NodeExecutionFailedError(t.Generic[H], SQLMeshError):
             node_name = node[0]
         self.node_name = node_name
 
-        # some engines return a tuple(int error code, [str|bytes] message)
+        # MSSQL returns a `tuple([int] error code, [bytes] error message)`.
+        # TODO: verify return types of other engines
         error_msg = None
         for arg in ex.args:
             if not error_msg and isinstance(arg, (str, bytes)):

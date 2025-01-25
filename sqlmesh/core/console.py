@@ -1605,6 +1605,27 @@ class CaptureTerminalConsole(TerminalConsole):
         self._errors.append(message)
         super().log_error(message)
 
+    def log_skipped_models(self, message: str) -> None:
+        self._errors.append(f"Skipped models\n\n{message}")
+        super().log_skipped_models(message)
+
+    def log_failed_models(self, msg_dict: t.Dict[str, str]) -> None:
+        out = "\nFailed models\n"
+
+        num_fails = len(msg_dict)
+        for i, (name, msg) in enumerate(msg_dict.items()):
+            for delim in ["'", '"', "[", "]", "`"]:
+                name = name.replace(delim, "")
+
+            msg = "  " + msg.replace("\n", "\n  ")
+            if i == (num_fails - 1):
+                msg = msg if msg.rstrip(" ").endswith("\n") else msg + "\n"
+
+            out += f"  {name}\n\n{msg}"
+
+        self._errors.append(out)
+        super().log_failed_models(msg_dict)
+
     def _print(self, value: t.Any, **kwargs: t.Any) -> None:
         with self.console.capture() as capture:
             self.console.print(value, **kwargs)

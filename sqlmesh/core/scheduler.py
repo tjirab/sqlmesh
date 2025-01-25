@@ -343,14 +343,10 @@ class Scheduler:
                 if isinstance(error.__cause__, CircuitBreakerError):
                     raise error.__cause__
 
-                msg = []
-                msg.append(str(error))
-                err_msg_dict[error.node_name] = "\n".join(msg)
+                err_msg_dict[error.node_name] = str(error)
 
                 exception_msg = (
-                    "\n".join(format_exception(error.__cause__))
-                    if error.__cause__
-                    else "\n".join(msg)
+                    "\n".join(format_exception(error.__cause__)) if error.__cause__ else str(error)
                 )
                 logger.info(f"EXECUTION ERROR\n{exception_msg}\n")
 
